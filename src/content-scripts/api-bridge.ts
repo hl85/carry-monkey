@@ -42,7 +42,20 @@ interface CarryMonkeyWindow extends Window {
 
 declare let window: CarryMonkeyWindow;
 
-console.log('CarryMonkey API Bridge loading...');
+// 创建 API Bridge 专用日志器
+const bridgeLogger = {
+  info: (message: string, data?: unknown) => {
+    console.log(`🌉[API-Bridge] ${message}`, data ? data : '');
+  },
+  warn: (message: string, data?: unknown) => {
+    console.warn(`🌉[API-Bridge] ${message}`, data ? data : '');
+  },
+  error: (message: string, data?: unknown) => {
+    console.error(`🌉[API-Bridge] ${message}`, data ? data : '');
+  }
+};
+
+bridgeLogger.info('API Bridge initializing...');
 
 function sendMessage(action: string, payload: Record<string, unknown>): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -98,7 +111,7 @@ window.GM_xmlhttpRequest = (details: GMXMLHttpRequestDetails): void => {
       }
     });
 };
-console.log('CarryMonkey API Bridge loaded with full API set.');
+bridgeLogger.info('API Bridge loaded with full API set');
 
 
 

@@ -4,6 +4,10 @@
  */
 
 import type { UserScript } from '../core/types';
+import { createComponentLogger } from './logger';
+
+// 创建资源管理器专用日志器
+const resourceLogger = createComponentLogger('ScriptResourceManager');
 
 export class ScriptResourceManager {
   private static instance: ScriptResourceManager;
@@ -71,8 +75,12 @@ export class ScriptResourceManager {
           await chrome.storage.local.set({ [cacheKey]: content });
         }
       } catch (error) {
-        console.error(`Failed to cache resource "${key}" from ${url}`, error);
-      }
+          resourceLogger.error('Failed to cache resource', {
+            key,
+            url,
+            error: (error as Error).message
+          });
+        }
     });
 
     await Promise.all(cachePromises);
@@ -100,8 +108,11 @@ export class ScriptResourceManager {
           return scriptContent;
         }
       } catch (error) {
-        console.error(`Failed to fetch or cache required script: ${url}`, error);
-      }
+          resourceLogger.error('Failed to fetch or cache required script', {
+            url,
+            error: (error as Error).message
+          });
+        }
       
       return '';
     });

@@ -7,21 +7,54 @@
 import type { UserScript } from '../../core/types';
 import { CompliantInjectionStrategy } from './compliant';
 import { InjectionUtils } from './utils';
+import { createComponentLogger } from '../logger';
+
+// 创建兼容性注入策略专用日志器
+const legacyLogger = createComponentLogger('CompatibilityInjection');
 
 export class CompatibilityInjectionStrategy {
   /**
    * 注入脚本 - 兼容版本
    */
   static async inject(script: UserScript, tabId: number): Promise<void> {
-    console.log(`[CompatibilityInjection] Injecting script: ${script.meta.name}`);
+    const startTime = performance.now();
+    
+    legacyLogger.info('Starting compatibility injection', {
+      scriptId: script.id,
+      scriptName: script.meta.name,
+      tabId,
+      action: 'compatibility-injection-start'
+    });
     
     try {
       // 首先尝试合规策略
       await CompliantInjectionStrategy.inject(script, tabId);
+      
+      const duration = performance.now() - startTime;
+      legacyLogger.info('Compliant injection succeeded', {
+        scriptId: script.id,
+        scriptName: script.meta.name,
+        duration: Math.round(duration * 100) / 100,
+        fallback: false
+      });
     } catch (error) {
-      console.warn(`[CompatibilityInjection] Compliant injection failed, using legacy fallback:`, error);
+      legacyLogger.warn('Compliant injection failed, using legacy fallback', {
+        scriptId: script.id,
+        scriptName: script.meta.name,
+        error: (error as Error).message,
+        fallback: true
+      });
+      
       // 降级到传统注入方法
       await this.injectWithLegacyMethods(script, tabId);
+      
+      const duration = performance.now() - startTime;
+      legacyLogger.info('Legacy fallback injection completed', {
+        scriptId: script.id,
+        scriptName: script.meta.name,
+        duration: Math.round(duration * 100) / 100,
+        fallback: true
+      });
     }
   }
 
@@ -29,7 +62,11 @@ export class CompatibilityInjectionStrategy {
    * 传统注入方法（包含 eval 等非合规功能）
    */
   private static async injectWithLegacyMethods(script: UserScript, tabId: number): Promise<void> {
-    console.warn(`[CompatibilityInjection] Using legacy injection methods for: ${script.meta.name}`);
+    legacyLogger.warn('Using legacy injection methods', {
+      scriptId: script.id,
+      scriptName: script.meta.name,
+      reason: 'compliant-injection-failed'
+    });
     
     const needsIsolation = InjectionUtils.needsIsolation(script);
     const world = InjectionUtils.getWorldString(needsIsolation);

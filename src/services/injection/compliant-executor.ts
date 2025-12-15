@@ -16,7 +16,8 @@ export class CompliantScriptExecutor {
    */
   static createCompliantExecutor() {
     return function(scriptContent: string, scriptName: string) {
-      console.log(`[CarryMonkey Compliant] Processing script: ${scriptName}`);
+      // Note: This log is embedded in the injected script
+      console.log(`🐒[CarryMonkey Compliant] Processing script: ${scriptName}`);
       
       try {
         // 合规模式：使用 script 标签注入，但不使用动态代码执行
@@ -38,7 +39,8 @@ export class CompliantScriptExecutor {
             scriptElement.textContent = policy.createScript(scriptContent) as string;
           } catch (error) {
             // 如果 Trusted Types 策略创建失败，记录错误但不执行脚本
-            console.error(`[CarryMonkey Compliant] Trusted Types policy creation failed: ${scriptName}`, error);
+            // Note: This error is embedded in the injected script
+            console.error(`🐒[CarryMonkey Compliant] Trusted Types policy creation failed: ${scriptName}`, error);
             return;
           }
         } else {
@@ -53,9 +55,11 @@ export class CompliantScriptExecutor {
         // 立即移除脚本元素（保持页面清洁）
         scriptElement.remove();
         
-        console.log(`[CarryMonkey Compliant] Script injected successfully: ${scriptName}`);
+        // Note: This log is embedded in the injected script
+        console.log(`🐒[CarryMonkey Compliant] Script injected successfully: ${scriptName}`);
       } catch (error) {
-        console.error(`[CarryMonkey Compliant] Script injection failed: ${scriptName}`, error);
+        // Note: This error is embedded in the injected script
+        console.error(`🐒[CarryMonkey Compliant] Script injection failed: ${scriptName}`, error);
       }
     };
   }
@@ -66,8 +70,9 @@ export class CompliantScriptExecutor {
    */
   static createReadOnlyExecutor() {
     return function(scriptContent: string, scriptName: string) {
-      console.log(`[CarryMonkey Read-Only] Script registered but not executed: ${scriptName}`);
-      console.log(`[CarryMonkey Read-Only] Script length: ${scriptContent.length} characters`);
+      // Note: These logs are embedded in the injected script
+      console.log(`🐒[CarryMonkey Read-Only] Script registered but not executed: ${scriptName}`);
+      console.log(`🐒[CarryMonkey Read-Only] Script length: ${scriptContent.length} characters`);
       
       // 在只读模式下，我们可以分析脚本但不执行
       try {
@@ -75,14 +80,16 @@ export class CompliantScriptExecutor {
         const hasGMAPIs = /GM_\w+/.test(scriptContent);
         const hasWindowAccess = /window\.|document\./.test(scriptContent);
         
-        console.log(`[CarryMonkey Read-Only] Script analysis:`, {
+        // Note: This log is embedded in the injected script
+        console.log(`🐒[CarryMonkey Read-Only] Script analysis:`, {
           name: scriptName,
           lines,
           hasGMAPIs,
           hasWindowAccess
         });
       } catch (error) {
-        console.error(`[CarryMonkey Read-Only] Script analysis failed: ${scriptName}`, error);
+        // Note: This error is embedded in the injected script
+        console.error(`🐒[CarryMonkey Read-Only] Script analysis failed: ${scriptName}`, error);
       }
     };
   }

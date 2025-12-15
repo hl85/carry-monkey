@@ -1,4 +1,7 @@
-// src/utils/matcher.ts
+import { createComponentLogger } from './logger';
+
+// 创建匹配器专用日志器
+const matcherLogger = createComponentLogger('Matcher');
 
 /**
  * Converts a match pattern string into a regular expression.
@@ -49,7 +52,11 @@ export function matches(url: string, patterns: string[]): boolean {
       const regex = patternToRegExp(pattern);
       return regex.test(url);
     } catch (e) {
-      console.error(e);
+      matcherLogger.error('Pattern matching failed', {
+        url,
+        pattern,
+        error: (e as Error).message
+      });
       return false;
     }
   });

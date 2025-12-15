@@ -1,9 +1,16 @@
 /**
  * GM API 管理器
  * 统一管理所有 GM_* API 的实现和调用
+ * 名词解释：GM 是 "GreaseMonkey" 的缩写，这是用户脚本生态系统中的一个重要概念。GreaseMonkey 是最早的用户脚本管理器之一，最初为 Firefox 浏览器开发.
+ * 它定义了一套标准的 API 接口，用于用户脚本与浏览器环境的交互，这些 API 都以 GM_ 前缀命名，成为了用户脚本的事实标准
+ * 这里采用GM风格是为兼容性考虑
  */
 
 import type { UserScript } from '../core/types';
+import { createComponentLogger } from './logger';
+
+// 创建 GM API 专用日志器
+const apiLogger = createComponentLogger('GMAPIManager');
 
 export interface GMAPIPayload {
   key?: string;
@@ -45,23 +52,53 @@ export class GMAPIManager {
    * 处理 GM API 调用
    */
   async handleAPICall(action: string, payload: GMAPIPayload): Promise<GMAPIResponse> {
+    const startTime = performance.now();
+    
     try {
+      apiLogger.debug(`API call received: ${action}`, { action, payload });
+      
+      let result: GMAPIResponse;
+      
       switch (action) {
         case 'GM_setValue':
-          return await this.handleGMSetValue(payload);
+          result = await this.handleGMSetValue(payload);
+          break;
         case 'GM_getValue':
-          return await this.handleGMGetValue(payload);
+          result = await this.handleGMGetValue(payload);
+          break;
         case 'GM_getResourceText':
-          return await this.handleGMGetResourceText(payload);
+          result = await this.handleGMGetResourceText(payload);
+          break;
         case 'GM_getResourceURL':
-          return await this.handleGMGetResourceURL(payload);
+          result = await this.handleGMGetResourceURL(payload);
+          break;
         case 'GM_xmlhttpRequest':
-          return await this.handleGMXMLHttpRequest(payload);
+          result = await this.handleGMXMLHttpRequest(payload);
+          break;
         default:
-          return { status: 'error', error: `Unknown GM API: ${action}` };
+          result = { status: 'error', error: `Unknown GM API: ${action}` };
+          apiLogger.warn(`Unknown GM API called: ${action}`, { action, payload });
       }
+      
+      const duration = performance.now() - startTime;
+      apiLogger.debug(`API call completed: ${action}`, { 
+        action, 
+        status: result.status, 
+        duration: Math.round(duration * 100) / 100 
+      });
+      
+      return result;
     } catch (error) {
-      return { status: 'error', error: (error as Error).message };
+      const duration = performance.now() - startTime;
+      const errorMessage = (error as Error).message;
+      
+      apiLogger.error(`API call failed: ${action}`, { 
+        action, 
+        error: errorMessage, 
+        duration: Math.round(duration * 100) / 100 
+      });
+      
+      return { status: 'error', error: errorMessage };
     }
   }
 
@@ -71,11 +108,18 @@ export class GMAPIManager {
   private async handleGMSetValue(payload: GMAPIPayload): Promise<GMAPIResponse> {
     const { key, value } = payload;
     if (!key) {
+      apiLogger.warn('GM_setValue called without key parameter', { payload });
       return { status: 'error', error: 'Missing key parameter' };
     }
 
-    await chrome.storage.local.set({ [key]: value });
-    return { status: 'success' };
+    try {
+      await chrome.storage.local.set({ [key]: value });
+      apiLogger.debug('GM_setValue successful', { key, valueType: typeof value });
+      return { status: 'success' };
+    } catch (error) {
+      apiLogger.error('GM_setValue failed', { key, error: (error as Error).message });
+      throw error;
+    }
   }
 
   /**
@@ -84,12 +128,25 @@ export class GMAPIManager {
   private async handleGMGetValue(payload: GMAPIPayload): Promise<GMAPIResponse> {
     const { key, defaultValue } = payload;
     if (!key) {
+      apiLogger.warn('GM_getValue called without key parameter', { payload });
       return { status: 'error', error: 'Missing key parameter' };
     }
 
-    const result = await chrome.storage.local.get([key]);
-    const value = result[key] === undefined ? defaultValue : result[key];
-    return { status: 'success', data: value };
+    try {
+      const result = await chrome.storage.local.get([key]);
+      const value = result[key] === undefined ? defaultValue : result[key];
+      
+      apiLogger.debug('GM_getValue successful', { 
+        key, 
+        hasValue: result[key] !== undefined,
+        usedDefault: result[key] === undefined
+      });
+      
+      return { status: 'success', data: value };
+    } catch (error) {
+      apiLogger.error('GM_getValue failed', { key, error: (error as Error).message });
+      throw error;
+    }
   }
 
   /**

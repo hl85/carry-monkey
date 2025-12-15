@@ -9,33 +9,85 @@ import { UserScriptsAPIManager } from '../userscripts-api';
 import { InjectionUtils } from './utils';
 import { CompliantScriptExecutor } from './compliant-executor';
 import { isFeatureEnabled } from '../../config/feature-flags';
+import { createComponentLogger } from '../logger';
+
+// 创建合规注入策略专用日志器
+const compliantLogger = createComponentLogger('CompliantInjection');
 
 export class CompliantInjectionStrategy {
   /**
    * 注入脚本 - 合规版本
    */
   static async inject(script: UserScript, tabId: number): Promise<void> {
-    console.log(`[CompliantInjection] Injecting script: ${script.meta.name}`);
+    const startTime = performance.now();
+    
+    compliantLogger.info('Starting compliant script injection', {
+      scriptId: script.id,
+      scriptName: script.meta.name,
+      tabId,
+      action: 'compliant-injection-start'
+    });
     
     // 验证脚本是否符合合规要求
     const validation = CompliantScriptExecutor.validateScriptContent(script);
     if (!validation.safe) {
-      console.warn(`[CompliantInjection] Script validation failed for ${script.meta.name}:`, validation.issues);
+      compliantLogger.warn('Script validation failed', {
+        scriptId: script.id,
+        scriptName: script.meta.name,
+        issues: validation.issues,
+        action: 'validation-failed'
+      });
       
       // 在严格合规模式下，拒绝执行不安全的脚本
       if (isFeatureEnabled('storeCompliant')) {
+        compliantLogger.error('Rejecting non-compliant script in strict mode', {
+          scriptId: script.id,
+          scriptName: script.meta.name,
+          issues: validation.issues
+        });
         throw new Error(`Script ${script.meta.name} contains non-compliant code: ${validation.issues.join(', ')}`);
       }
+    } else {
+      compliantLogger.debug('Script validation passed', {
+        scriptId: script.id,
+        action: 'validation-passed'
+      });
     }
     
     // 优先使用 UserScripts API（合规方式）
     if (await this.canUseUserScriptsAPI()) {
+      compliantLogger.debug('Using UserScripts API for injection', {
+        scriptId: script.id,
+        method: 'userscripts-api'
+      });
       await this.injectViaUserScripts(script);
+      
+      const duration = performance.now() - startTime;
+      compliantLogger.info('Compliant injection completed via UserScripts API', {
+        scriptId: script.id,
+        scriptName: script.meta.name,
+        method: 'userscripts-api',
+        duration: Math.round(duration * 100) / 100,
+        action: 'injection-success'
+      });
       return;
     }
     
     // 降级到 chrome.scripting API（合规方式）
+    compliantLogger.debug('Falling back to chrome.scripting API', {
+      scriptId: script.id,
+      method: 'chrome-scripting'
+    });
     await this.injectViaScripting(script, tabId);
+    
+    const duration = performance.now() - startTime;
+    compliantLogger.info('Compliant injection completed via chrome.scripting API', {
+      scriptId: script.id,
+      scriptName: script.meta.name,
+      method: 'chrome-scripting',
+      duration: Math.round(duration * 100) / 100,
+      action: 'injection-success'
+    });
   }
 
   /**
@@ -49,8 +101,19 @@ export class CompliantInjectionStrategy {
       reason: 'Using UserScripts API for compliant execution'
     };
 
+    compliantLogger.debug('Registering script with UserScripts API', {
+      scriptId: script.id,
+      strategy: strategy.method,
+      world: strategy.world,
+      timing: strategy.timing
+    });
+
     // 使用合规的 UserScripts API 注册（不使用包装器）
     await UserScriptsAPIManager.registerScriptCompliant(script, strategy);
+    
+    compliantLogger.debug('Script registered successfully with UserScripts API', {
+      scriptId: script.id
+    });
   }
 
   /**
@@ -60,10 +123,28 @@ export class CompliantInjectionStrategy {
     const needsIsolation = InjectionUtils.needsIsolation(script);
     const world = InjectionUtils.getWorldString(needsIsolation);
 
+    compliantLogger.debug('Analyzing script isolation requirements', {
+      scriptId: script.id,
+      needsIsolation,
+      world,
+      grants: script.meta.grant || []
+    });
+
     // 注入 API Bridge（如果需要隔离）
     if (needsIsolation) {
+      compliantLogger.debug('Injecting API bridge for isolated execution', {
+        scriptId: script.id,
+        tabId
+      });
       await InjectionUtils.injectAPIBridge(tabId, script.id);
     }
+
+    compliantLogger.debug('Executing script via chrome.scripting API', {
+      scriptId: script.id,
+      tabId,
+      world,
+      executor: 'compliant'
+    });
 
     // 使用合规的脚本执行器
     await chrome.scripting.executeScript({
@@ -71,6 +152,11 @@ export class CompliantInjectionStrategy {
       func: CompliantScriptExecutor.createCompliantExecutor(),
       args: [script.content, script.meta.name],
       world: world as chrome.scripting.ExecutionWorld,
+    });
+    
+    compliantLogger.debug('Script execution completed via chrome.scripting API', {
+      scriptId: script.id,
+      tabId
     });
   }
 

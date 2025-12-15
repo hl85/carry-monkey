@@ -5,6 +5,10 @@ import { matches } from '../services/matcher';
 import { UnifiedInjectionEngine } from '../services/injection/engine';
 import { GMAPIManager, type GMAPIPayload } from '../services/gm-api-manager';
 import { ScriptResourceManager } from '../services/script-resource-manager';
+import { createComponentLogger } from '../services/logger';
+
+// 创建后台服务专用日志器
+const backgroundLogger = createComponentLogger('Background');
 
 // 资源管理器实例
 const resourceManager = ScriptResourceManager.getInstance();
@@ -123,7 +127,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // 注入匹配的脚本
     for (const script of parsedScripts) {
       if (script.enabled && matches(tab.url, script.meta.match)) {
-        console.log(`[Auto-Inject] Matched script "${script.meta.name}" for URL: ${tab.url}`);
+        backgroundLogger.info('Script matched for auto-injection', {
+          scriptName: script.meta.name,
+          scriptId: script.id,
+          url: tab.url,
+          action: 'auto-inject'
+        });
         await UnifiedInjectionEngine.injectScript(script, tabId);
       }
     }
