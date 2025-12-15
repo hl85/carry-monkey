@@ -9,7 +9,7 @@ import { createComponentLogger } from './logger';
 const eventLogger = createComponentLogger('GuidanceEvents');
 
 export interface GuidanceEvent {
-  type: 'userscripts_permission_denied' | 'userscripts_unavailable' | 'browser_compatibility';
+  type: 'userscripts_permission_denied' | 'userscripts_unavailable' | 'browser_compatibility' | 'clear_userscripts_cache';
   data?: any;
   timestamp: number;
 }

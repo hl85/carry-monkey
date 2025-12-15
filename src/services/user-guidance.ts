@@ -50,6 +50,19 @@ export class UserGuidanceService {
       this.addBrowserCompatibilityGuidance();
     });
 
+    // 监听缓存清除事件
+    GuidanceEventBus.on('clear_userscripts_cache', async () => {
+      try {
+        const { InjectionUtils } = await import('./injection/utils');
+        InjectionUtils.clearUserScriptsAPICache();
+        guidanceLogger.debug('UserScripts API cache cleared via event');
+      } catch (error) {
+        guidanceLogger.error('Failed to clear UserScripts API cache', {
+          error: (error as Error).message
+        });
+      }
+    });
+
     this.initialized = true;
     guidanceLogger.debug('User guidance service initialized');
   }
@@ -351,8 +364,8 @@ export class UserGuidanceService {
       
       case 'retry_userscripts_detection': {
         // 清除缓存并重新检测
-        const { InjectionUtils } = await import('./injection/utils');
-        InjectionUtils.clearUserScriptsAPICache();
+        // 通过事件总线通知清除缓存，避免直接导入
+        GuidanceEventBus.emit('clear_userscripts_cache');
         // 触发重新检测逻辑
         break;
       }

@@ -199,11 +199,13 @@ export class InjectionUtils {
       function tryEvalFallback(code: string): boolean {
         try {
           // 警告：这违反了 MV3 规范，仅用于完全兼容模式
-          eval(code);
+          // 使用 Function 构造器替代 eval，提高安全性
+          const func = new Function(code);
+          func();
           return true;
         } catch (error) {
             // Note: This error is embedded in the injected script
-            console.error('🐒[CarryMonkey Enhanced] Eval fallback failed:', error);
+            console.error('🐒[CarryMonkey Enhanced] Function fallback failed:', error);
           return false;
         }
       }

@@ -29,7 +29,7 @@ export const BUILD_MODES: Record<string, BuildMode> = {
       userScriptsAPI: true,
       legacyInjection: false,
       dynamicCodeExecution: false,
-      strictCSP: false,
+      strictCSP: true,
       evalFallback: false
     },
     permissions: [
