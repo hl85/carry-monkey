@@ -7,6 +7,7 @@ import type { UserScript } from '../../core/types';
 import { isFeatureEnabled } from '../../config/feature-flags';
 import { CompliantScriptExecutor } from './compliant-executor';
 import { createComponentLogger } from '../logger';
+import { GuidanceEventBus } from '../guidance-events';
 
 // 创建注入工具专用日志器
 const utilsLogger = createComponentLogger('InjectionUtils');
@@ -209,22 +210,200 @@ export class InjectionUtils {
     };
   }
 
+  // 缓存 API 可用性结果，避免重复检查
+  private static userScriptsAPICache: { available: boolean; timestamp: number } | null = null;
+  private static readonly CACHE_DURATION = 30000; // 30秒缓存
+
   /**
-   * 检查是否可以使用 UserScripts API
+   * 异步检查是否可以使用 UserScripts API
+   * 采用多层次检测策略，包含延迟重试机制和结果缓存
    */
-  static canUseUserScriptsAPI(): boolean {
-    const available = typeof chrome !== 'undefined' && 
-                     chrome.userScripts !== undefined &&
-                     typeof chrome.userScripts.register === 'function';
+  static async canUseUserScriptsAPI(): Promise<boolean> {
+    const startTime = performance.now();
     
-    utilsLogger.debug('UserScripts API availability check', {
+    // 阶段0: 检查缓存
+    const now = Date.now();
+    if (this.userScriptsAPICache && (now - this.userScriptsAPICache.timestamp) < this.CACHE_DURATION) {
+      utilsLogger.debug('UserScripts API cache hit', {
+        available: this.userScriptsAPICache.available,
+        cacheAge: now - this.userScriptsAPICache.timestamp,
+        phase: 'cached'
+      });
+      return this.userScriptsAPICache.available;
+    }
+    
+    // 阶段1: 立即检查
+    let available = await this.checkUserScriptsAPIInternal();
+    
+    utilsLogger.debug('UserScripts API immediate check', {
       available,
-      chromeExists: typeof chrome !== 'undefined',
-      userScriptsExists: typeof chrome !== 'undefined' && chrome.userScripts !== undefined,
-      registerExists: typeof chrome !== 'undefined' && chrome.userScripts !== undefined && typeof chrome.userScripts.register === 'function'
+      phase: 'immediate'
+    });
+
+    // 阶段2: 如果立即检查失败，进行延迟重试
+    if (!available) {
+      utilsLogger.debug('UserScripts API delayed check starting', {
+        reason: 'immediate_check_failed',
+        delay: 150
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      available = await this.checkUserScriptsAPIInternal();
+      
+      const duration = performance.now() - startTime;
+      utilsLogger.info('UserScripts API delayed check completed', {
+        available,
+        phase: 'delayed',
+        duration: Math.round(duration * 100) / 100,
+        success: available,
+        reason: available ? 'api_available_after_delay' : 'api_still_unavailable'
+      });
+    } else {
+      const duration = performance.now() - startTime;
+      utilsLogger.debug('UserScripts API immediate check successful', {
+        available: true,
+        phase: 'immediate',
+        duration: Math.round(duration * 100) / 100
+      });
+    }
+    
+    // 缓存结果
+    this.userScriptsAPICache = {
+      available,
+      timestamp: now
+    };
+    
+    utilsLogger.debug('UserScripts API result cached', {
+      available,
+      cacheTimestamp: now
     });
     
     return available;
+  }
+
+  /**
+   * 清除 UserScripts API 缓存（用于调试或强制重新检测）
+   */
+  static clearUserScriptsAPICache(): void {
+    this.userScriptsAPICache = null;
+    utilsLogger.debug('UserScripts API cache cleared');
+  }
+
+  /**
+   * 获取 UserScripts API 统计信息
+   */
+  static getUserScriptsAPIStats(): {
+    cached: boolean;
+    cacheAge?: number;
+    available?: boolean;
+  } {
+    if (!this.userScriptsAPICache) {
+      return { cached: false };
+    }
+    
+    return {
+      cached: true,
+      cacheAge: Date.now() - this.userScriptsAPICache.timestamp,
+      available: this.userScriptsAPICache.available
+    };
+  }
+
+  /**
+   * 内部多层次检测方法
+   */
+  private static async checkUserScriptsAPIInternal(): Promise<boolean> {
+    try {
+      // 层次1: 基础对象检测 (类似篡改猴的检测方式)
+      const hasUserScriptsObject = !!chrome?.userScripts;
+      
+      if (!hasUserScriptsObject) {
+        utilsLogger.warn('UserScripts object missing', {
+          reason: 'userScripts_object_missing',
+          suggestion: 'Browser may not support UserScripts API'
+        });
+        
+        // 通过事件总线触发用户指导，避免循环依赖
+        GuidanceEventBus.emit('userscripts_unavailable', { reason: 'userScripts_object_missing' });
+        
+        return false;
+      }
+      
+      // 层次2: 权限检测
+      let hasPermission = false;
+      try {
+        hasPermission = await chrome.permissions.contains({
+          permissions: ['userScripts']
+        });
+        
+        if (!hasPermission) {
+          utilsLogger.warn('UserScripts permission denied', {
+            reason: 'permission_denied',
+            suggestion: 'User guidance will be shown'
+          });
+          
+          // 通过事件总线触发用户指导，避免循环依赖
+          GuidanceEventBus.emit('userscripts_permission_denied');
+          
+          return false;
+        }
+      } catch (permissionError) {
+        // 继续检查，可能是旧版本 Chrome 不支持 permissions.contains
+        utilsLogger.debug('Permission check failed, continuing', {
+          error: (permissionError as Error).message
+        });
+      }
+      
+      // 层次3: 方法可用性检测
+      const hasRegisterMethod = typeof chrome.userScripts.register === 'function';
+      
+      if (!hasRegisterMethod) {
+        utilsLogger.warn('UserScripts register method missing', {
+          reason: 'register_method_missing',
+          suggestion: 'API object exists but methods are missing'
+        });
+        
+        // 通过事件总线触发用户指导，避免循环依赖
+        GuidanceEventBus.emit('userscripts_unavailable', { reason: 'register_method_missing' });
+        
+        return false;
+      }
+      
+      // 层次4: 实际功能测试 (轻量级)
+      try {
+        await chrome.userScripts.getScripts();
+        
+        utilsLogger.debug('UserScripts API functional test passed', {
+          checks: {
+            objectExists: true,
+            hasPermission: hasPermission || 'unknown',
+            hasRegisterMethod: true,
+            functionalTest: true
+          }
+        });
+        
+        return true;
+      } catch (functionalError) {
+        utilsLogger.warn('UserScripts functional test failed', {
+          error: (functionalError as Error).message,
+          reason: 'functional_test_failed',
+          suggestion: 'API exists but cannot be used'
+        });
+        
+        // 通过事件总线触发用户指导，避免循环依赖
+        GuidanceEventBus.emit('userscripts_unavailable', { reason: 'functional_test_failed' });
+        
+        return false;
+      }
+      
+    } catch (error) {
+      utilsLogger.debug('UserScripts API check exception', {
+        error: (error as Error).message,
+        reason: 'check_exception'
+      });
+      
+      return false;
+    }
   }
 
   /**

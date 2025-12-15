@@ -41,5 +41,15 @@ export const baseManifest = {
     }
   ],
 
-  host_permissions: ['<all_urls>']
+  host_permissions: ['<all_urls>'],
+
+  permissions: [
+    'activeTab',
+    'storage',
+    'unlimitedStorage',
+    'scripting',
+    'tabs',
+    'userScripts',
+    'notifications'  // 添加通知权限
+  ]
 };

@@ -6,9 +6,13 @@ import { UnifiedInjectionEngine } from '../services/injection/engine';
 import { GMAPIManager, type GMAPIPayload } from '../services/gm-api-manager';
 import { ScriptResourceManager } from '../services/script-resource-manager';
 import { createComponentLogger } from '../services/logger';
+import { UserGuidanceService } from '../services/user-guidance';
 
 // 创建后台服务专用日志器
 const backgroundLogger = createComponentLogger('Background');
+
+// 初始化用户指导服务
+UserGuidanceService.init();
 
 // 资源管理器实例
 const resourceManager = ScriptResourceManager.getInstance();
@@ -94,6 +98,23 @@ chrome.runtime.onMessage.addListener(
         
         const response = await apiManager.handleAPICall(message.action, payload);
         sendResponse(response);
+        return;
+      }
+
+      // 处理用户指导相关消息
+      if (message.action === 'handle_guidance_action' && message.payload) {
+        try {
+          const actionPayload = message.payload as unknown as { action: string };
+          await UserGuidanceService.handleGuidanceAction(actionPayload.action);
+          sendResponse({ status: 'success' });
+        } catch (error) {
+          const actionPayload = message.payload as unknown as { action: string };
+          backgroundLogger.error('Failed to handle guidance action', {
+            action: actionPayload?.action || 'unknown',
+            error: (error as Error).message
+          });
+          sendResponse({ status: 'error', error: (error as Error).message });
+        }
         return;
       }
 

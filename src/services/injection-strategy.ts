@@ -11,9 +11,9 @@ const strategyLogger = createComponentLogger('InjectionStrategy');
  */
 export class InjectionStrategySelector {
   /**
-   * 选择最优注入策略
+   * 异步选择最优注入策略
    */
-  static selectStrategy(script: UserScript): InjectionStrategy {
+  static async selectStrategy(script: UserScript): Promise<InjectionStrategy> {
     const startTime = performance.now();
     
     strategyLogger.info('Starting strategy selection', {
@@ -57,8 +57,8 @@ export class InjectionStrategySelector {
       isolationReason: sandboxMode !== 'raw' ? 'explicit-sandbox' : hasGMAPIs ? 'gm-apis' : 'none'
     });
 
-    // 4. 检查是否支持 UserScripts API
-    const supportsUserScriptsAPI = this.checkUserScriptsAPISupport();
+    // 4. 异步检查是否支持 UserScripts API
+    const supportsUserScriptsAPI = await this.checkUserScriptsAPISupport();
 
     strategyLogger.info('UserScripts API availability', {
       scriptId: script.id,
@@ -94,6 +94,21 @@ export class InjectionStrategySelector {
         scriptId: script.id,
         strategy: 'userscripts-api',
         factors: ['special-apis', 'userscripts-support'],
+        priority: 'high'
+      });
+    } else if (supportsUserScriptsAPI) {
+      // 优先使用 UserScripts API，即使是简单脚本
+      selectedStrategy = {
+        method: 'userscripts-api',
+        world: 'USER_SCRIPT',
+        timing: this.convertRunAtTiming(runAt),
+        reason: 'UserScripts API available, using for better isolation and performance'
+      };
+      
+      strategyLogger.info('Strategy selected: UserScripts API (Simple)', {
+        scriptId: script.id,
+        strategy: 'userscripts-api-simple',
+        factors: ['userscripts-available', 'better-isolation'],
         priority: 'high'
       });
     } else if (needsIsolation) {
@@ -148,10 +163,10 @@ export class InjectionStrategySelector {
   }
 
   /**
-   * 检查 UserScripts API 是否可用
+   * 异步检查 UserScripts API 是否可用
    */
-  private static checkUserScriptsAPISupport(): boolean {
-    return InjectionUtils.canUseUserScriptsAPI();
+  private static async checkUserScriptsAPISupport(): Promise<boolean> {
+    return await InjectionUtils.canUseUserScriptsAPI();
   }
 
   /**

@@ -29,8 +29,8 @@ export class UnifiedInjectionEngine {
       action: 'injection-start'
     });
     
-    // 获取策略选择结果
-    const strategy = InjectionStrategySelector.selectStrategy(script);
+    // 异步获取策略选择结果
+    const strategy = await InjectionStrategySelector.selectStrategy(script);
     script.meta._injectionStrategy = strategy;
     
     engineLogger.info('Injection strategy determined', {
