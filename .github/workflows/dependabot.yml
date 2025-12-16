@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  # npm 依赖更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # 版本更新策略
+    versioning-strategy: increase
+    # 分组更新
+    groups:
+      # React 相关依赖一起更新
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      # Vite 相关依赖一起更新
+      vite:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+      # ESLint 相关依赖一起更新
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+      # TypeScript 相关依赖一起更新
+      typescript:
+        patterns:
+          - "typescript*"
+          - "@types/*"
+      # Ant Design 相关依赖一起更新
+      antd:
+        patterns:
+          - "antd"
+          - "@ant-design/*"
+
+  # GitHub Actions 更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    labels:
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
