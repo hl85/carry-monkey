@@ -5,11 +5,11 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"  # 改为每月检查，减少频率
       day: "monday"
       time: "09:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5  # 减少同时打开的 PR 数量
     labels:
       - "dependencies"
       - "automated"
@@ -18,6 +18,11 @@ updates:
       include: "scope"
     # 版本更新策略
     versioning-strategy: increase
+    # 忽略特定依赖的更新
+    ignore:
+      # 忽略主版本更新（破坏性更新）
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     # 分组更新
     groups:
       # React 相关依赖一起更新
