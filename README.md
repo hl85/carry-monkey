@@ -1,4 +1,8 @@
-# CarryMonkey
+# 搬运猴(CarryMonkey)
+
+[![CI](https://github.com/wanghui10/carry-monkey/actions/workflows/main.yml/badge.svg)](https://github.com/wanghui10/carry-monkey/actions/workflows/main.yml)
+[![Release](https://github.com/wanghui10/carry-monkey/actions/workflows/release.yml/badge.svg)](https://github.com/wanghui10/carry-monkey/actions/workflows/release.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 现代化的用户脚本管理器 Chrome 扩展，支持完全的 Manifest V3 合规性，同时保持向后兼容性。
 

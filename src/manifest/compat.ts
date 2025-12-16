@@ -9,7 +9,7 @@ import type { ManifestV3Export } from "@crxjs/vite-plugin";
 export const compatManifest: ManifestV3Export = {
   ...baseManifest,
 
-  name: "CarryMonkey (Enhanced)",
+  name: "搬运猴（CarryMonkey Enhanced)",
   description: "增强版用户脚本管理器，包含最大兼容性功能",
 
   permissions: ["activeTab", "storage", "scripting", "tabs", "userScripts"],
