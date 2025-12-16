@@ -29,3 +29,7 @@ refers
 
 # ide
 .kwaipilot
+
+# store key
+*.crx
+*.pem

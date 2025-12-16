@@ -45,7 +45,7 @@
 
 ### 环境要求
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v20+
 - [pnpm](https://pnpm.io/) (推荐包管理器)
 
 ### 安装步骤
