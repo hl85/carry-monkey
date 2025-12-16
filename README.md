@@ -4,27 +4,31 @@
 
 ## ✨ 核心特性
 
-### 🏗️ 双模式架构
+### 双模式架构
 - **商店版** (`pnpm builds`): 完全符合 Chrome Web Store 规范
 - **兼容版** (`pnpm buildc`): 包含最大兼容性功能
-- **智能切换**: 根据构建模式自动选择合适的注入策略
 
-### 🛡️ MV3 完全合规
+### MV3 合规适配
 - ✅ 无 `eval()` 使用（商店模式）
 - ✅ 无 `Function` 构造器（商店模式）
 - ✅ 支持 CSP nonce 和 Trusted Types
 - ✅ 完全静态的代码执行
 - ✅ UserScripts API 原生支持
 
-### 🎯 智能注入系统
+### 注入系统
 - **自动脚本验证**: 检测并阻止非合规代码
 - **多策略降级**: 合规 → 兼容 → 传统注入
 - **资源预加载**: 脚本依赖和资源缓存优化
 - **统一 API 管理**: 集中处理所有 GM_* API 调用
 
-### 💻 现代化技术栈
+### 用户体验
+- **快捷键支持**: 支持新建、保存等常用操作 (兼容 Mac/Win)
+- **轻量级提示**: 自动消失的、无干扰的用户提示系统
+
+
+### 技术栈
 - **TypeScript**: 完整的类型安全
-- **React 19**: 最新的用户界面框架
+- **React 18**: 成熟的用户界面框架
 - **Vite**: 现代化构建工具
 - **Ant Design**: 专业的 UI 组件库
 - **ESLint + Prettier**: 代码质量保证
@@ -118,18 +122,20 @@ src/
 │
 ├── ui/                       # 用户界面模块
 │   ├── popup/                # 扩展弹出窗口
-│   └── dashboard/            # 管理面板
+│   ├── dashboard/            # 管理面板
+│   └── components/           # 可复用 UI 组件
+│       └── user-tip.ts       # 用户提示组件
 │
 ├── services/                 # 业务逻辑服务
 │   ├── injection/            # 脚本注入策略
 │   │   ├── engine.ts        # 统一注入引擎
 │   │   ├── compliant.ts     # 合规注入策略
 │   │   ├── legacy.ts        # 兼容注入策略
-│   │   ├── utils.ts         # 注入工具函数
-│   │   └── compliant-executor.ts # 合规脚本执行器
+│   │   └── utils.ts         # 注入工具函数
 │   ├── gm-api-manager.ts     # GM API 管理器
 │   ├── script-resource-manager.ts # 脚本资源管理
-│   └── userscripts-api.ts    # UserScripts API 包装
+│   ├── userscripts-api.ts    # UserScripts API 包装
+│   └── user-notifier.ts      # 轻量级用户通知服务
 │
 ├── config/                   # 配置文件
 │   ├── feature-flags.ts      # 功能开关配置
