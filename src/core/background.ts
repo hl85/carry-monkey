@@ -6,15 +6,9 @@ import { UnifiedInjectionEngine } from '../services/injection/engine';
 import { GMAPIManager, type GMAPIPayload } from '../services/gm-api-manager';
 import { ScriptResourceManager } from '../services/script-resource-manager';
 import { createComponentLogger } from '../services/logger';
-import { UserGuidanceService } from '../services/user-guidance';
-import { InjectionUtils } from '../services/injection/utils';
 
 // 创建后台服务专用日志器
 const backgroundLogger = createComponentLogger('Background');
-
-// 初始化核心服务
-UserGuidanceService.init();
-InjectionUtils.init();
 
 // 资源管理器实例
 const resourceManager = ScriptResourceManager.getInstance();
@@ -100,33 +94,6 @@ chrome.runtime.onMessage.addListener(
         
         const response = await apiManager.handleAPICall(message.action, payload);
         sendResponse(response);
-        return;
-      }
-
-      // 处理用户指导相关消息
-      if (message.action === 'handle_guidance_action' && message.payload) {
-        try {
-          const actionPayload = message.payload as { action: string };
-          const action = actionPayload.action;
-
-          // 检查 action 是否为 URL
-          if (action.startsWith('http:') || action.startsWith('https:') || action.startsWith('chrome://')) {
-            await chrome.tabs.create({ url: action });
-            backgroundLogger.info('Opened URL from guidance action', { url: action });
-          } else {
-            // 否则，作为内部命令处理
-            await UserGuidanceService.handleGuidanceAction(action);
-          }
-          
-          sendResponse({ status: 'success' });
-        } catch (error) {
-          const actionPayload = message.payload as { action: string };
-          backgroundLogger.error('Failed to handle guidance action', {
-            action: actionPayload?.action || 'unknown',
-            error: (error as Error).message
-          });
-          sendResponse({ status: 'error', error: (error as Error).message });
-        }
         return;
       }
 

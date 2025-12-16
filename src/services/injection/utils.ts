@@ -7,29 +7,12 @@ import type { UserScript } from '../../core/types';
 import { isFeatureEnabled } from '../../config/feature-flags';
 import { CompliantScriptExecutor } from './compliant-executor';
 import { createComponentLogger } from '../logger';
-import { GuidanceEventBus } from '../guidance-events';
+import { UserNotifier } from '../user-notifier';
 
 // 创建注入工具专用日志器
 const utilsLogger = createComponentLogger('InjectionUtils');
 
 export class InjectionUtils {
-  private static initialized = false;
-
-  /**
-   * 初始化注入工具类
-   * 设置事件监听器
-   */
-  static init(): void {
-    if (this.initialized) return;
-
-    GuidanceEventBus.on('clear_userscripts_cache', () => {
-      this.clearUserScriptsAPICache();
-      utilsLogger.debug('UserScripts API cache cleared via event');
-    });
-
-    this.initialized = true;
-    utilsLogger.debug('Injection utils service initialized');
-  }
 
   /**
    * 判断脚本是否需要隔离环境
@@ -343,19 +326,16 @@ export class InjectionUtils {
    */
   private static async checkUserScriptsAPIInternal(): Promise<boolean> {
     const version = this.getChromeVersion();
-    const isDeveloperMode = chrome.runtime.getManifest().short_name?.includes('Dev');
+    // 注意：检查开发者模式的方式可能不完全可靠，这里仅作为示例
+    const isDeveloperMode = chrome.runtime.getManifest().update_url === undefined;
 
     // 场景一：低版本浏览器
-    if (version < 138) {
+    if (version > 0 && version < 138) {
       if (!isDeveloperMode) {
-        utilsLogger.warn('UserScripts API check failed on older Chrome without Developer Mode.', {
-          version,
-          isDeveloperMode
-        });
-        GuidanceEventBus.emit('browser_compatibility', { reason: 'developer_mode_required' });
+        utilsLogger.warn('Older Chrome requires Developer Mode for User Scripts.');
+        UserNotifier.showTip('请从管理扩展程序页开启开发者模式');
         return false;
       }
-      // 对于低版本 + 开发者模式，继续尝试 API 调用
     }
 
     // 场景二：高版本浏览器，或已启用开发者模式的低版本浏览器
@@ -364,12 +344,8 @@ export class InjectionUtils {
       utilsLogger.debug('UserScripts API is available.');
       return true;
     } catch (error) {
-      utilsLogger.warn('UserScripts API is not available, likely needs to be enabled in extension details.', {
-        version,
-        isDeveloperMode,
-        error: (error as Error).message
-      });
-      GuidanceEventBus.emit('userscripts_permission_denied');
+      utilsLogger.warn('UserScripts API not available, likely needs permission.' + error);
+      UserNotifier.showTip('请从CarryMonkey详情页开启用户脚本权限');
       return false;
     }
   }
