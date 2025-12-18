@@ -2,10 +2,10 @@
  * 基础 Manifest 配置
  * 包含所有构建模式共享的配置
  */
-
+import packageJson from "../../package.json";
 export const baseManifest = {
   manifest_version: 3,
-  version: "1.0.0",
+  version: packageJson.version, // 从 package.json 读取
 
   icons: {
     "16": "assets/icon.png",
